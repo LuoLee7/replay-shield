@@ -1,0 +1,71 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {JSDOM}=require('jsdom');
+const base=path.resolve(__dirname,'..'),script=fs.readFileSync(path.join(base,'extension/content.js'),'utf8'),css=fs.readFileSync(path.join(base,'extension/shield.css'),'utf8');
+const template=fs.readFileSync(path.join(base,'demo/index.html'),'utf8').replace(/<script[\s\S]*?<\/script>/g,'');
+let passed=0;const check=(name,fn)=>{fn();passed++;console.log('PASS',name);};
+async function fixture({next=true,stored={},url='https://www.bilibili.com/video/BVfixture/?p=3'}={}){
+ const dom=new JSDOM(template,{url,runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window,d=w.document;
+ let listener;const writes=[],timers=[],intervals=[];
+ w.setTimeout=(f,ms)=>{timers.push({f,ms});return timers.length;};w.clearTimeout=id=>{if(timers[id-1])timers[id-1].cancelled=true;};w.setInterval=(f,ms)=>{intervals.push({f,ms});return intervals.length;};
+ w.chrome={storage:{local:{get(def,cb){cb({...structuredClone(def),...stored});},set(v){writes.push(structuredClone(v));return Promise.resolve();}},onChanged:{addListener(f){listener=f;}}}};
+ const video=d.querySelector('video');video.getBoundingClientRect=()=>({left:0,top:0,width:960,height:540});Object.defineProperty(video,'duration',{get:()=>600});video.currentTime=50;
+ const style=d.createElement('style');style.textContent=css;d.head.append(style);const rules=[...style.sheet.cssRules];
+ if(!next)d.querySelector('.bpx-player-ctrl-next').remove();
+ let nextClicks=0,prevClicks=0;
+ d.querySelector('.bpx-player-ctrl-next')?.addEventListener('click',()=>nextClicks++);d.querySelector('.bpx-player-ctrl-prev').addEventListener('click',()=>prevClicks++);
+ w.eval(script);d.dispatchEvent(new w.Event('DOMContentLoaded'));await new Promise(r=>setImmediate(r));
+ const sh=d.querySelector('#ns-shield-host').shadowRoot;
+ const hides=el=>{for(let n=el;n&&n.nodeType===1;n=n.parentElement)if(rules.some(r=>r.selectorText&&!r.selectorText.includes('::')&&(r.style.display==='none'||r.style.visibility==='hidden'||r.style.opacity==='0')&&n.matches(r.selectorText)))return true;return false;};
+ return{dom,w,d,sh,video,rules,writes,timers,intervals,hides,sync:changes=>listener(changes,'local'),counts:()=>({nextClicks,prevClicks}),close:async()=>{await new Promise(r=>setImmediate(r));dom.window.close();}};
+}
+async function run(){
+ const a=await fixture({stored:{strict:true,video:true,blocks:[{x:0,y:0,w:1,h:1}]}}),{d,sh,w}=a;
+ check('Manifest 1.1.0 has storage-only permission and early injection',()=>{const m=JSON.parse(fs.readFileSync(path.join(base,'extension/manifest.json')));assert.equal(m.version,'1.1.0');assert.deepEqual(m.permissions,['storage']);assert.equal(m.content_scripts[0].run_at,'document_start');});
+ check('Legacy strict/video/blocks cannot hide names or video',()=>{assert.equal(d.documentElement.hasAttribute('data-ns-teams'),false);assert.equal(sh.querySelector('#strict'),null);assert.equal(sh.querySelector('#video'),null);assert.equal(sh.querySelector('#layer'),null);assert.equal(sh.querySelector('#edit'),null);});
+ check('Card team names and logos remain visible',()=>{for(const el of d.querySelectorAll('.home,.away,.fake-logo'))assert.equal(a.hides(el),false);});
+ check('Bracket team names remain visible on win and lose rows',()=>{for(const el of d.querySelectorAll('.match-stage-pc .team,.match-stage-pc .name'))assert.equal(a.hides(el),false);});
+ check('No CSS/video layer covers the playback image',()=>{assert.equal(a.hides(a.video),false);assert.equal(sh.querySelectorAll('.block').length,0);});
+ check('Every score is replaced, including newly inserted cards',()=>{
+  const card=d.createElement('div');card.className='schedule-card-row-pc';card.innerHTML='<div class="score"><span>3</span></div>';d.body.append(card);
+  for(const score of d.querySelectorAll('.score'))assert.ok(a.rules.some(r=>r.style.color==='transparent'&&score.matches(r.selectorText)));
+ });
+ check('Win and lose rows get identical neutral background rule',()=>{const rule=a.rules.find(r=>r.selectorText?.endsWith('.match-stage-pc .team'));assert.ok(d.querySelector('.team.win').matches(rule.selectorText)&&d.querySelector('.team.lose').matches(rule.selectorText));assert.ok(rule.style.background);});
+ check('Replay links and match dates remain visible',()=>{for(const el of d.querySelectorAll('.replay,.time'))assert.equal(a.hides(el),false);});
+ check('Three independent settings are enabled by default',()=>{for(const id of ['meta','markers','episodeGuard'])assert.equal(sh.querySelector('#'+id).checked,true);});
+ check('Early CSS hides native next/prev/eplist before JS flags',()=>{const attrs=['data-ns-meta','data-ns-markers','data-ns-episodes'];attrs.forEach(x=>d.documentElement.removeAttribute(x));for(const el of d.querySelectorAll('.bpx-player-ctrl-next,.bpx-player-ctrl-prev,.multi-page'))assert.equal(a.hides(el),true);});
+ a.sync({meta:{newValue:false}});
+ check('Event icons and PBP hide even with surrounding protection OFF',()=>{for(const el of d.querySelectorAll('.bpx-player-progress-freezone,.bpx-player-pbp'))assert.equal(a.hides(el),true);assert.equal(a.hides(d.querySelector('.bpx-player-progress')),false);});
+ a.sync({markers:{newValue:false}});
+ check('Event protection can be turned off independently',()=>{assert.equal(a.hides(d.querySelector('.bpx-player-progress-freezone')),false);assert.equal(a.hides(d.querySelector('.bpx-player-pbp')),false);});
+ a.sync({markers:{newValue:true},meta:{newValue:true}});
+ sh.querySelector('#launcher').click();
+ check('Panel opens with fixed episode controls',()=>{assert.equal(sh.querySelector('#panel').hidden,false);assert.equal(sh.querySelector('#next-part').disabled,false);assert.equal(sh.querySelector('#prev-part').disabled,false);});
+ const b=await fixture({next:false});
+ check('P3 with/without next native button has identical shield controls',()=>{assert.equal(sh.querySelector('#episode-controls').outerHTML,b.sh.querySelector('#episode-controls').outerHTML);});
+ sh.querySelector('#next-part').click();b.sh.querySelector('#next-part').click();
+ check('Native next handler works without revealing total count',()=>{assert.equal(a.counts().nextClicks,1);assert.equal(b.counts().nextClicks,0);});
+ check('Missing-next click produces identical text and enabled state',()=>{assert.equal(sh.querySelector('#episode-controls').outerHTML,b.sh.querySelector('#episode-controls').outerHTML);assert.equal(b.w.location.search,'?p=3');});
+ sh.querySelector('#prev-part').click();check('Previous part handler remains usable',()=>assert.equal(a.counts().prevClicks,1));
+ check('Existing same-video P4 link is used before native control',()=>{const link=d.createElement('a');link.href='?p=4';let used=0;link.onclick=e=>{e.preventDefault();used++;};d.body.append(link);sh.querySelector('#next-part').click();assert.equal(used,1);assert.equal(a.counts().nextClicks,1);link.remove();});
+ check('Foreign links do not become next-part targets',()=>{const link=b.d.createElement('a');link.href='https://example.com/video/BVfixture/?p=4';let used=0;link.onclick=e=>{e.preventDefault();used++;};b.d.body.append(link);b.sh.querySelector('#next-part').click();assert.equal(used,0);assert.equal(b.w.location.search,'?p=3');});
+ check('Disabled native control is never invoked',()=>{d.querySelector('.bpx-player-ctrl-next').setAttribute('aria-disabled','true');sh.querySelector('#next-part').click();assert.equal(a.counts().nextClicks,1);});
+ a.sync({episodeGuard:{newValue:false}});
+ check('Episode guard toggle restores native controls and hides fixed ones',()=>{assert.equal(a.hides(d.querySelector('.bpx-player-ctrl-next')),false);assert.equal(sh.querySelector('#episode-controls').hidden,true);});
+ a.sync({episodeGuard:{newValue:true}});
+ sh.querySelector('#reveal').click();
+ check('Score reveal does not reveal icons or native next buttons',()=>{assert.equal(d.documentElement.hasAttribute('data-ns-reveal'),true);assert.equal(a.hides(d.querySelector('.bpx-player-pbp')),true);assert.equal(a.hides(d.querySelector('.bpx-player-ctrl-next')),true);});
+ a.timers.findLast(t=>t.ms===10000).f();check('Scores re-hide after 10 seconds',()=>assert.equal(d.documentElement.hasAttribute('data-ns-reveal'),false));
+ sh.querySelector('[data-seek="120"]').click();check('Skip controls still seek',()=>assert.equal(a.video.currentTime,170));
+ sh.querySelector('#speed').value='1.5';sh.querySelector('#speed').dispatchEvent(new w.Event('change'));check('Speed control still works',()=>assert.equal(a.video.playbackRate,1.5));
+ check('Control detects replaced player nodes',()=>{const replacement=d.createElement('video');replacement.getBoundingClientRect=()=>({width:800,height:450});Object.defineProperty(replacement,'duration',{get:()=>300});replacement.currentTime=20;a.video.replaceWith(replacement);a.intervals[0].f();sh.querySelector('[data-seek="15"]').click();assert.equal(replacement.currentTime,35);});
+ check('Settings from panel are saved',()=>{sh.querySelector('#markers').click();assert.equal(a.writes.at(-1).markers,false);});
+ check('Fullscreen panel follows container and returns on exit',()=>{const container=d.querySelector('.bpx-player-container');Object.defineProperty(d,'fullscreenElement',{configurable:true,value:container});d.dispatchEvent(new w.Event('fullscreenchange'));assert.equal(d.querySelector('#ns-shield-host').parentElement,container);Object.defineProperty(d,'fullscreenElement',{configurable:true,value:null});d.dispatchEvent(new w.Event('fullscreenchange'));assert.equal(d.querySelector('#ns-shield-host').parentElement,d.documentElement);});
+ check('Source title is neutralized and restored by meta setting',()=>{assert.equal(d.title,'赛事回放 · 护盾保护中');a.sync({meta:{newValue:false}});assert.notEqual(d.title,'赛事回放 · 护盾保护中');});
+ // Validate toolbar popup independently.
+ const pdom=new JSDOM(fs.readFileSync(path.join(base,'extension/popup.html'),'utf8'),{runScripts:'outside-only'}),pw=pdom.window;let popupSaved;
+ pw.chrome={storage:{local:{get(def,cb){cb(def);},set(v){popupSaved=v;return Promise.resolve();}}}};
+ pw.eval(fs.readFileSync(path.join(base,'extension/popup.js'),'utf8'));pw.document.querySelector('#episodeGuard').click();await new Promise(r=>setImmediate(r));
+ check('Toolbar settings match page settings and save',()=>{assert.deepEqual(Object.keys(popupSaved),['episodeGuard']);assert.equal(popupSaved.episodeGuard,false);assert.equal(pw.document.querySelector('#strict'),null);});
+ pdom.window.close();await a.close();await b.close();console.log(`\n${passed} checks passed`);
+}
+run().catch(e=>{console.error(e);process.exitCode=1;});

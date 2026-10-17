@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "回放护盾 · B站赛事防剧透",
+  "version": "1.1.0",
+  "description": "保留队名和比赛画面，隐藏页面比分、进度条事件提示及总局数线索。",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_title": "回放护盾",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://live.bilibili.com/*",
+        "https://www.bilibili.com/blackboard/*",
+        "https://www.bilibili.com/video/*",
+        "https://www.bilibili.com/list/*",
+        "https://www.bilibili.com/medialist/*",
+        "https://www.bilibili.com/bangumi/play/*",
+        "https://www.bilibili.com/v/game/match/*",
+        "https://player.bilibili.com/*"
+      ],
+      "css": [
+        "shield.css"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "author": "Xun",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

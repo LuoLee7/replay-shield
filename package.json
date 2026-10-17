@@ -1,0 +1,14 @@
+{
+  "name": "replay-shield",
+  "version": "1.1.0",
+  "private": true,
+  "description": "回放护盾 — B站赛事回放防剧透扩展",
+  "author": "Xun",
+  "packageManager": "pnpm@11.25.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --check extension/content.js && node --check extension/popup.js && node --check demo/preview.js && node scripts/check-assets.cjs && node tests/extension.test.cjs",
+    "package": "node scripts/package.mjs"
+  },
+  "devDependencies": { "jsdom": "26.1.0" }
+}
