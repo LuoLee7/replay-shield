@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/badge-version.svg" alt="Version 1.1.0">
+  <img src="docs/assets/badge-version.svg" alt="Version 1.2.0">
   <img src="docs/assets/badge-browser.svg" alt="Edge / Chrome">
   <img src="docs/assets/badge-local.svg" alt="Local only">
   <img src="docs/assets/badge-author.svg" alt="Author Xun">
@@ -89,6 +89,14 @@ v1.1.0 已移除队名隐藏和视频画面遮挡。旧的遮挡设置不会继�
 
 三个开关分别生效，设置保存在本机，在已打开的匹配页面间同步。
 
+### 只保护赛事官方 UP 主
+
+视频页默认只对**赛事官方 UP 主**启用整套护盾：按上传者 mid 判断。默认名单为 `50329118`（哔哩哔哩英雄联盟赛事），可在护盾面板中修改，多个 mid 用逗号分隔；留空则回退为所有视频页都保护。
+
+`live.bilibili.com/6`（含 `/blanc/6`、`/h5/6`）赛事页、`/v/game/match` 比赛模块、`player.bilibili.com` 外部播放器和 `blackboard` 活动页始终启用；直播页不启用。当前页面不在名单时，右下角「◈ 护盾」显示为灰色，面板顶部标注当前 UP 主与“未启用”，把对应 mid 加进名单即可立即生效。
+
+UP 主信息优先从页面的上传者链接读取，缺失时回退到 JSON-LD 的 author，不需要额外网络请求或权限。
+
 ### 切局按钮不会抢先告诉你结局
 
 护盾面板的 **上一局 / 下一局** 始终保持相同文字和可点击状态，不因最后一局而变灰或消失，也不显示总集数。点击时使用页面实际存在的分集入口；缺少入口时不会拼出越界地址或跳转。
@@ -122,7 +130,7 @@ replay-shield/
 ├─ extension/          浏览器直接加载的扩展
 ├─ demo/               可离线打开的交互演示
 ├─ docs/               使用指南、验证记录与展示素材
-├─ tests/              30 项 DOM 与逻辑回归检查
+├─ tests/              45 项 DOM 与逻辑回归检查
 ├─ scripts/            检查与本地打包脚本
 ├─ CHANGELOG.md        版本变化
 └─ README.md           你正在看的这一页
@@ -146,7 +154,7 @@ corepack pnpm run package
 ## ◈ 适用范围
 
 - 适用于电脑端 Edge / Chrome 的匹配 B 站赛事页和回放页，不支持手机 B 站 App。
-- 已通过 **30 项 DOM 与逻辑检查**；完整真实回放、账号状态与播放器全屏尚未完成实测确认。
+- 已通过 **45 项 DOM 与逻辑检查**；完整真实回放、账号状态与播放器全屏尚未完成实测确认。
 - 页面改版、图片里烧录的比分、搜索 / 动态页面和新的弹幕组件，可能需要额外适配。
 - 所有队名按设计保留，后续晋级对阵中的队伍身份也保持可见。
 

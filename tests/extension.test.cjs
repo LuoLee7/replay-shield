@@ -3,8 +3,11 @@ const {JSDOM}=require('jsdom');
 const base=path.resolve(__dirname,'..'),script=fs.readFileSync(path.join(base,'extension/content.js'),'utf8'),css=fs.readFileSync(path.join(base,'extension/shield.css'),'utf8');
 const template=fs.readFileSync(path.join(base,'demo/index.html'),'utf8').replace(/<script[\s\S]*?<\/script>/g,'');
 let passed=0;const check=(name,fn)=>{fn();passed++;console.log('PASS',name);};
-async function fixture({next=true,stored={},url='https://www.bilibili.com/video/BVfixture/?p=3'}={}){
+async function fixture({next=true,stored={},url='https://www.bilibili.com/video/BVfixture/?p=3',title='测试回放',uploader='50329118',jsonLd=''}={}){
  const dom=new JSDOM(template,{url,runScripts:'outside-only',pretendToBeVisual:true}),w=dom.window,d=w.document;
+ d.title=title;
+ if(uploader){const box=d.createElement('div');box.className='up-info-container';const a=d.createElement('a');a.href='//space.bilibili.com/'+uploader+'/';const n=d.createElement('span');n.className='up-name';n.textContent='测试 UP 主';box.append(a,n);d.body.append(box);}
+ if(jsonLd){const s=d.createElement('script');s.type='application/ld+json';s.textContent=JSON.stringify({author:{'@id':'https://space.bilibili.com/'+jsonLd+'#person',name:'测试 UP 主'}});d.head.append(s);}
  let listener;const writes=[],timers=[],intervals=[];
  w.setTimeout=(f,ms)=>{timers.push({f,ms});return timers.length;};w.clearTimeout=id=>{if(timers[id-1])timers[id-1].cancelled=true;};w.setInterval=(f,ms)=>{intervals.push({f,ms});return intervals.length;};
  w.chrome={storage:{local:{get(def,cb){cb({...structuredClone(def),...stored});},set(v){writes.push(structuredClone(v));return Promise.resolve();}},onChanged:{addListener(f){listener=f;}}}};
@@ -20,7 +23,7 @@ async function fixture({next=true,stored={},url='https://www.bilibili.com/video/
 }
 async function run(){
  const a=await fixture({stored:{strict:true,video:true,blocks:[{x:0,y:0,w:1,h:1}]}}),{d,sh,w}=a;
- check('Manifest 1.1.0 has storage-only permission and early injection',()=>{const m=JSON.parse(fs.readFileSync(path.join(base,'extension/manifest.json')));assert.equal(m.version,'1.1.0');assert.deepEqual(m.permissions,['storage']);assert.equal(m.content_scripts[0].run_at,'document_start');});
+ check('Manifest 1.2.0 has storage-only permission and early injection',()=>{const m=JSON.parse(fs.readFileSync(path.join(base,'extension/manifest.json')));assert.equal(m.version,'1.2.0');assert.deepEqual(m.permissions,['storage']);assert.equal(m.content_scripts[0].run_at,'document_start');});
  check('Legacy strict/video/blocks cannot hide names or video',()=>{assert.equal(d.documentElement.hasAttribute('data-ns-teams'),false);assert.equal(sh.querySelector('#strict'),null);assert.equal(sh.querySelector('#video'),null);assert.equal(sh.querySelector('#layer'),null);assert.equal(sh.querySelector('#edit'),null);});
  check('Card team names and logos remain visible',()=>{for(const el of d.querySelectorAll('.home,.away,.fake-logo'))assert.equal(a.hides(el),false);});
  check('Bracket team names remain visible on win and lose rows',()=>{for(const el of d.querySelectorAll('.match-stage-pc .team,.match-stage-pc .name'))assert.equal(a.hides(el),false);});
@@ -61,11 +64,51 @@ async function run(){
  check('Settings from panel are saved',()=>{sh.querySelector('#markers').click();assert.equal(a.writes.at(-1).markers,false);});
  check('Fullscreen panel follows container and returns on exit',()=>{const container=d.querySelector('.bpx-player-container');Object.defineProperty(d,'fullscreenElement',{configurable:true,value:container});d.dispatchEvent(new w.Event('fullscreenchange'));assert.equal(d.querySelector('#ns-shield-host').parentElement,container);Object.defineProperty(d,'fullscreenElement',{configurable:true,value:null});d.dispatchEvent(new w.Event('fullscreenchange'));assert.equal(d.querySelector('#ns-shield-host').parentElement,d.documentElement);});
  check('Source title is neutralized and restored by meta setting',()=>{assert.equal(d.title,'赛事回放 · 护盾保护中');a.sync({meta:{newValue:false}});assert.notEqual(d.title,'赛事回放 · 护盾保护中');});
+ // UP 主 filter: only videos from listed uploaders are protected.
+ check('Filter defaults fill the panel with the official mid',()=>{assert.equal(sh.querySelector('#uploaders').value,'50329118');assert.equal(sh.querySelector('#upFilter').checked,true);});
+ check('Official uploader activates the video page',()=>assert.equal(d.documentElement.hasAttribute('data-ns-active'),true));
+ const c=await fixture({uploader:'123456'});
+ check('Other uploader leaves the page untouched',()=>{assert.equal(c.d.documentElement.hasAttribute('data-ns-active'),false);assert.equal(c.hides(c.d.querySelector('.multi-page')),false);assert.match(c.sh.querySelector('#state').textContent,/不在名单/);assert.ok(c.sh.querySelector('#launcher').classList.contains('off'));});
+ check('Adding the current uploader activates immediately',()=>{const f=c.sh.querySelector('#uploaders');f.value='123456';f.dispatchEvent(new c.w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));assert.equal(c.d.documentElement.hasAttribute('data-ns-active'),true);assert.equal(c.hides(c.d.querySelector('.multi-page')),true);assert.equal(c.writes.at(-1).uploaders,'123456');});
+ const ld=await fixture({uploader:'',jsonLd:'50329118'});
+ check('JSON-LD author activates when the uploader box is missing',()=>assert.equal(ld.d.documentElement.hasAttribute('data-ns-active'),true));
+ const s=await fixture({url:'https://live.bilibili.com/6'});
+ check('Schedule page is always active',()=>assert.equal(s.d.documentElement.hasAttribute('data-ns-active'),true));
+ const sb=await fixture({url:'https://live.bilibili.com/blanc/6'});
+ check('Blanc schedule layout is always active',()=>assert.equal(sb.d.documentElement.hasAttribute('data-ns-active'),true));
+ const lv=await fixture({url:'https://live.bilibili.com/12345',uploader:'50329118'});
+ check('Live rooms stay untouched',()=>assert.equal(lv.d.documentElement.hasAttribute('data-ns-active'),false));
+ const off=await fixture({uploader:'123456',stored:{upFilter:false}});
+ check('Disabling the filter protects every video page',()=>assert.equal(off.d.documentElement.hasAttribute('data-ns-active'),true));
+ const empty=await fixture({uploader:'123456',stored:{uploaders:''}});
+ check('Empty uploader list falls back to protecting every video page',()=>assert.equal(empty.d.documentElement.hasAttribute('data-ns-active'),true));
+ const spa=await fixture({uploader:'123456'});
+ check('Uploader changes during SPA navigation are picked up',()=>{
+  assert.equal(spa.d.documentElement.hasAttribute('data-ns-active'),false);
+  spa.w.history.pushState({},'','/video/BVnext/?p=3');
+  spa.intervals[0].f();
+  assert.equal(spa.d.documentElement.hasAttribute('data-ns-active'),false);
+  spa.d.querySelector('.up-info-container a').setAttribute('href','//space.bilibili.com/50329118/');
+  spa.intervals[0].f();
+  assert.equal(spa.d.documentElement.hasAttribute('data-ns-active'),true);
+  assert.match(spa.sh.querySelector('#state').textContent,/官方 UP 主/);
+  spa.d.querySelector('.up-info-container a').setAttribute('href','//space.bilibili.com/123456/');
+  spa.intervals[0].f();
+  assert.equal(spa.d.documentElement.hasAttribute('data-ns-active'),false);
+ });
+ const liveOff=await fixture({url:'https://live.bilibili.com/12345',stored:{upFilter:false}});
+ check('Live rooms stay off when the filter is disabled',()=>assert.equal(liveOff.d.documentElement.hasAttribute('data-ns-active'),false));
+ const matchBare=await fixture({url:'https://www.bilibili.com/v/game/match'});
+ check('Bare /v/game/match is a schedule page',()=>assert.equal(matchBare.d.documentElement.hasAttribute('data-ns-active'),true));
+ const player=await fixture({url:'https://player.bilibili.com/player.html?bvid=BV1',uploader:''});
+ check('Embedded player is always active',()=>assert.equal(player.d.documentElement.hasAttribute('data-ns-active'),true));
+ const board=await fixture({url:'https://www.bilibili.com/blackboard/era/test.html',uploader:''});
+ check('Blackboard pages are always active',()=>assert.equal(board.d.documentElement.hasAttribute('data-ns-active'),true));
  // Validate toolbar popup independently.
  const pdom=new JSDOM(fs.readFileSync(path.join(base,'extension/popup.html'),'utf8'),{runScripts:'outside-only'}),pw=pdom.window;let popupSaved;
  pw.chrome={storage:{local:{get(def,cb){cb(def);},set(v){popupSaved=v;return Promise.resolve();}}}};
  pw.eval(fs.readFileSync(path.join(base,'extension/popup.js'),'utf8'));pw.document.querySelector('#episodeGuard').click();await new Promise(r=>setImmediate(r));
  check('Toolbar settings match page settings and save',()=>{assert.deepEqual(Object.keys(popupSaved),['episodeGuard']);assert.equal(popupSaved.episodeGuard,false);assert.equal(pw.document.querySelector('#strict'),null);});
- pdom.window.close();await a.close();await b.close();console.log(`\n${passed} checks passed`);
+ pdom.window.close();await a.close();await b.close();await c.close();await ld.close();await s.close();await sb.close();await lv.close();await off.close();await empty.close();await spa.close();await liveOff.close();await matchBare.close();await player.close();await board.close();console.log(`\n${passed} checks passed`);
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});
