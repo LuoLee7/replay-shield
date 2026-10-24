@@ -1,26 +1,27 @@
-/* v1.1.0: team names/logos and the video are intact. */
-:root:not([data-ns-reveal]) :is(.schedule-card-row-pc,.schedule-card-row,.match-stage-pc,[data-module="match-schedule-row-pc"],[data-module="match-stage-pc"]) .score {
+/* v1.2.0: team names/logos and the video are intact. Every rule waits for
+   data-ns-active so the UP filter can leave unrelated video pages alone. */
+:root[data-ns-active]:not([data-ns-reveal]) :is(.schedule-card-row-pc,.schedule-card-row,.match-stage-pc,[data-module="match-schedule-row-pc"],[data-module="match-stage-pc"]) .score {
   position:relative!important;color:transparent!important;background:#22283a!important;text-shadow:none!important;border-radius:4px!important;overflow:hidden!important;
 }
-:root:not([data-ns-reveal]) :is(.schedule-card-row-pc,.schedule-card-row,.match-stage-pc,[data-module="match-schedule-row-pc"],[data-module="match-stage-pc"]) .score > * {visibility:hidden!important}
-:root:not([data-ns-reveal]) :is(.schedule-card-row-pc,.schedule-card-row,.match-stage-pc) .score::after {
+:root[data-ns-active]:not([data-ns-reveal]) :is(.schedule-card-row-pc,.schedule-card-row,.match-stage-pc,[data-module="match-schedule-row-pc"],[data-module="match-stage-pc"]) .score > * {visibility:hidden!important}
+:root[data-ns-active]:not([data-ns-reveal]) :is(.schedule-card-row-pc,.schedule-card-row,.match-stage-pc) .score::after {
   content:"—"!important;position:absolute!important;inset:0!important;display:grid!important;place-items:center!important;color:#9aa9c5!important;font:600 16px/1 sans-serif!important;visibility:visible!important;
 }
-:root:not([data-ns-reveal]) .schedule-card-row-pc .title-player,
-:root:not([data-ns-reveal]) .match-stage-pc .win-mark,
-:root:not([data-ns-reveal]) .match-stage-pc .win:not(.team),
-:root:not([data-ns-reveal]) .match-stage-pc :is(.points-content,.match-points,.swiss__point) {visibility:hidden!important}
-:root:not([data-ns-reveal]) .match-stage-pc .team {background:#303345!important;color:#e4e8f1!important;opacity:1!important;filter:none!important;box-shadow:none!important;border-color:#45495c!important}
-:root:not([data-ns-reveal]) .match-stage-pc .team :is(.name,.logo,.info) {color:#e4e8f1!important;opacity:1!important;filter:none!important}
-:root:not([data-ns-reveal]) .match-stage-pc .match-points {display:none!important}
+:root[data-ns-active]:not([data-ns-reveal]) .schedule-card-row-pc .title-player,
+:root[data-ns-active]:not([data-ns-reveal]) .match-stage-pc .win-mark,
+:root[data-ns-active]:not([data-ns-reveal]) .match-stage-pc .win:not(.team),
+:root[data-ns-active]:not([data-ns-reveal]) .match-stage-pc :is(.points-content,.match-points,.swiss__point) {visibility:hidden!important}
+:root[data-ns-active]:not([data-ns-reveal]) .match-stage-pc .team {background:#303345!important;color:#e4e8f1!important;opacity:1!important;filter:none!important;box-shadow:none!important;border-color:#45495c!important}
+:root[data-ns-active]:not([data-ns-reveal]) .match-stage-pc .team :is(.name,.logo,.info) {color:#e4e8f1!important;opacity:1!important;filter:none!important}
+:root[data-ns-active]:not([data-ns-reveal]) .match-stage-pc .match-points {display:none!important}
 
 /* Surrounding spoilers / time are independently configurable. */
-:root:not([data-ns-meta="show"]) :is(.video-info-container,.video-info,.video-title,.video-desc-container,.video-desc,.video-tag-container,#commentapp,#comment,.comment,.recommend-list-v1,.video-page-card-small,.bpx-player-dm-wrap,.bpx-player-row-dm-wrap,.bpx-player-adv-dm-wrap,.bpx-player-bas-dm-wrap,.bpx-player-cmd-dm-wrap,.bili-danmaku-x-dm,.danmaku-item-container,.chat-history-panel,.chat-history-list,.chat-items) {visibility:hidden!important;pointer-events:none!important}
-:root:not([data-ns-meta="show"]) :is(.bpx-player-progress-area,.bpx-player-shadow-progress-area,.bpx-player-progress,.bpx-player-ctrl-time,.bpx-player-progress-preview,.bilibili-player-video-progress,.bilibili-player-video-time) {visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+:root[data-ns-active]:not([data-ns-meta="show"]) :is(.video-info-container,.video-info,.video-title,.video-desc-container,.video-desc,.video-tag-container,#commentapp,#comment,.comment,.recommend-list-v1,.video-page-card-small,.bpx-player-dm-wrap,.bpx-player-row-dm-wrap,.bpx-player-adv-dm-wrap,.bpx-player-bas-dm-wrap,.bpx-player-cmd-dm-wrap,.bili-danmaku-x-dm,.danmaku-item-container,.chat-history-panel,.chat-history-list,.chat-items) {visibility:hidden!important;pointer-events:none!important}
+:root[data-ns-active]:not([data-ns-meta="show"]) :is(.bpx-player-progress-area,.bpx-player-shadow-progress-area,.bpx-player-progress,.bpx-player-ctrl-time,.bpx-player-progress-preview,.bilibili-player-video-progress,.bilibili-player-video-time) {visibility:hidden!important;opacity:0!important;pointer-events:none!important}
 
 /* Official player modules 165 / 936: independent event markers and PBP. */
-:root:not([data-ns-markers="show"]) :is(.bpx-player-progress-freezone,.bpx-player-progress-point-wrap,.bpx-player-progress-point,.bpx-player-progress-point-logo,.bpx-player-progress-hotspot,.bpx-player-progress-popup,.bpx-player-pbp,.bpx-player-pbp-pin,.bpx-player-ctrl-viewpoint,.bpx-player-viewpoint,.bilibili-player-video-progress-detail,.bilibili-player-video-progress-detail-sign,.bilibili-player-video-progress-detail-img) {display:none!important;visibility:hidden!important;pointer-events:none!important}
+:root[data-ns-active]:not([data-ns-markers="show"]) :is(.bpx-player-progress-freezone,.bpx-player-progress-point-wrap,.bpx-player-progress-point,.bpx-player-progress-point-logo,.bpx-player-progress-hotspot,.bpx-player-progress-popup,.bpx-player-pbp,.bpx-player-pbp-pin,.bpx-player-ctrl-viewpoint,.bpx-player-viewpoint,.bilibili-player-video-progress-detail,.bilibili-player-video-progress-detail-sign,.bilibili-player-video-progress-detail-img) {display:none!important;visibility:hidden!important;pointer-events:none!important}
 
 /* Always hide native part navigation, whether or not the next part exists. */
-:root:not([data-ns-episodes="show"]) :is(.bpx-player-ctrl-next,.bpx-player-ctrl-prev,.bpx-player-ctrl-eplist,.bilibili-player-video-btn-next,.bilibili-player-video-btn-prev,.bilibili-player-video-btn-list,.video-pod,.video-sections-content-list,.base-video-sections,.multi-page,.bpx-player-ending,.bpx-player-ending-related) {display:none!important;visibility:hidden!important;pointer-events:none!important}
-:root:not([data-ns-episodes="show"]) :is(#bilibili-player,#bilibiliPlayer,.bpx-player-container) :is([aria-label^="下一集"],[aria-label^="上一集"],[title^="下一集"],[title^="上一集"]) {display:none!important;visibility:hidden!important;pointer-events:none!important}
+:root[data-ns-active]:not([data-ns-episodes="show"]) :is(.bpx-player-ctrl-next,.bpx-player-ctrl-prev,.bpx-player-ctrl-eplist,.bilibili-player-video-btn-next,.bilibili-player-video-btn-prev,.bilibili-player-video-btn-list,.video-pod,.video-sections-content-list,.base-video-sections,.multi-page,.bpx-player-ending,.bpx-player-ending-related) {display:none!important;visibility:hidden!important;pointer-events:none!important}
+:root[data-ns-active]:not([data-ns-episodes="show"]) :is(#bilibili-player,#bilibiliPlayer,.bpx-player-container) :is([aria-label^="下一集"],[aria-label^="上一集"],[title^="下一集"],[title^="上一集"]) {display:none!important;visibility:hidden!important;pointer-events:none!important}
